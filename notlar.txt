@@ -1,0 +1,39 @@
+DeliveryHub’da kullanılanlar
+
+Akış ve mimari
+
+5 servis, her biri Clean Architecture katmanlarıyla (Domain / Application / Infrastructure).
+Kuyruk üzerinden istek–cevap → Aşama 4:
+Senkron: mesaj LavinMQ’ya gönderiliyor, sonra Redis’te cevap bekleniyor (10 kez, 1'er saniye arayla).
+Asenkron: müşteriye hemen bir ProcessId dönülüyor, müşteri sonucu ayrıca soruyor.
+Idempotency key (aynı istek tekrar gelirse yeni iş başlatmamak için anahtar) Redis’te tutuluyor → Aşama 3
+Fallback outbox: broker’a mesaj gönderilemezse mesaj veritabanına (OutboxMessage) ya da bir Redis listesine yazılıyor. Arka planda çalışan FallbackRetryWorker bunları toplu alıp tekrar deniyor; belli bir süre geçince vazgeçiyor → Aşama 4
+MassTransit consumer’ları (kuyruktan mesaj okuyan sınıflar), topic adları ve DLQ (işlenemeyen mesajların düştüğü kuyruk) → Aşama 4
+gRPC sadece tek bir hızlı sorgu için kullanılıyor (GetLocation) → isteğe bağlı
+
+API katmanı
+
+Kimlik doğrulama JWT ile değil: istek header’ındaki ApiKey / IntegratorKey / MasterKey değerleri, controller’lara takılan attribute filter’larla kontrol ediliyor → Aşama 2
+FluentValidation: her istek tipi için IValidator<T> (kuralları tutan doğrulama sınıfı) bulunup otomatik çalıştırılıyor → Aşama 2
+Hatalar middleware’de değil, bir response filter’da status code’a çevriliyor → Aşama 2. Biz modern yolu, IExceptionHandler + ProblemDetails’i yapacağız.
+Diğer: API versioning (v1/...), Scalar (API dokümantasyon arayüzü, Basic Auth ile korunuyor), health check’ler (/health/live, /health/ready) → Aşama 2
+
+Veri
+
+EF Core + PostgreSQL, UnitOfWork + repository → Aşama 1
+SaveChanges interceptor’ları (kaydetmeden hemen önce araya girip entity’yi değiştiren sınıflar) → Aşama 1:
+CreateDate’i otomatik dolduruyor; saati doğrudan almıyor, TimeProvider’dan (test edilebilir saat) alıyor.
+Soft delete: silinen kayıt silinmiyor, IsDeleted = true olarak işaretleniyor.
+⚠️ Hiçbir yerde optimistic concurrency yok (iki işlemin birbirinin değişikliğini ezmesini engelleyen kontrol). Lab’da xmin ile bunu ekleyeceğiz. Mülakatta güzel bir konuşma malzemesi olur.
+
+Kurye platformlarına giden çağrılar → Aşama 5
+
+PlatformPackageHandlerFactory: PlatformType değerine göre 11 platformdan doğru servisi DI’dan çekiyor (factory/strategy pattern).
+HttpClientFactory + Polly: retry + jitter, circuit breaker, Retry-After header’ına uyma.
+Müşteriye giden webhook’lar HMAC-SHA256 ile imzalanıyor (X-DeliveryHub-Signature header’ı). Müşteri bununla isteğin gerçekten DeliveryHub’dan geldiğini doğrulayabiliyor.
+
+Gözlemlenebilirlik ve operasyon
+
+Serilog + OpenTelemetry → OpenObserve, ayrıca Prometheus → Aşama 6
+Dockerfile, docker-compose, K8s manifest’leri, GitHub Actions, K6 → Aşama 7
+Testler NUnit + Moq / NSubstitute + FluentAssertions ile yazılmış → her aşamada biraz test

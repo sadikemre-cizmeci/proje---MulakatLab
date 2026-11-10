@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="MulakatLab.Api/MulakatLab.Api.csproj" />
+  <Project Path="MulakatLab.Application/MulakatLab.Application.csproj" />
+  <Project Path="MulakatLab.Domain/MulakatLab.Domain.csproj" />
+  <Project Path="MulakatLab.Infrastructure/MulakatLab.Infrastructure.csproj" />
+ 
+</Solution>

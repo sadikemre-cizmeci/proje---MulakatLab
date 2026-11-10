@@ -1,0 +1,15 @@
+services:
+  postgres:
+      image: postgres:17
+      container_name: mulakatlab-postgres
+      environment:
+          POSTGRES_USER: mulakatlab
+          POSTGRES_PASSWORD: mulakatlab
+          POSTGRES_DB: mulakatlab
+      ports:
+        - "5432:5432"
+      volumes:
+        - pgdata:/var/lib/postgresql/data
+
+volumes:
+    pgdata:
