@@ -18,7 +18,7 @@ public static class DependencyInjection
 
 
         services.AddSingleton<ITicketNumberGenerator, InMemoryTicketNumberGenerator>();
-        services.AddScoped<ITicketRepository, InMemoryTicketRepository>();
+        services.AddScoped<ITicketRepository, EfTicketRepository>();
         return services;
     }
 }
